@@ -5,12 +5,14 @@ $username = "root";
 $password = "";
 $dbname = "blueshirt";
 
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    die(json_encode(["error" => "Connection failed: " . $conn->connect_error]));
+try {
+    // Create connection with PDO
+    $conn = new PDO("mysql:host=$servername;dbname=$dbname;charset=utf8", $username, $password);
+    // Set the PDO error mode to exception
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo json_encode(["error" => "Connection failed: " . $e->getMessage()]);
+    exit();
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -57,20 +59,34 @@ switch ($endpoint) {
         echo json_encode(["error" => "Invalid endpoint"]);
 }
 
-$conn->close();
+$conn = null; // Close the connection
 
 function getEvents($conn)
 {
-    $sql = "SELECT * FROM events";
-    $result = $conn->query($sql);
-    $events = [];
+    $id = isset($_GET['id']) ? $_GET['id'] : null;
 
-    while ($row = $result->fetch_assoc()) {
-        $events[] = $row;
+    if ($id) {
+        $stmt = $conn->prepare("SELECT * FROM events WHERE id = :id LIMIT 1");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // ถ้าไม่พบ event ที่ตรงกับ id ที่ให้มา
+        if ($event) {
+            echo json_encode($event);
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'Event not found']);
+        }
+    } else {
+        $stmt = $conn->prepare("SELECT * FROM events");
+        $stmt->execute();
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode($events);
     }
-
-    echo json_encode($events);
 }
+
 
 function addEvent($conn)
 {
@@ -80,12 +96,16 @@ function addEvent($conn)
     $title = $data['title'];
     $start_date = $data['start_date'];
 
-    $sql = "INSERT INTO events (v_name_id, v_member_id, title, start_date) VALUES ('$v_name_id','$v_member_id', '$title', '$start_date')";
+    $stmt = $conn->prepare("INSERT INTO events (v_name_id, v_member_id, title, start_date) VALUES (:v_name_id, :v_member_id, :title, :start_date)");
+    $stmt->bindParam(':v_name_id', $v_name_id);
+    $stmt->bindParam(':v_member_id', $v_member_id);
+    $stmt->bindParam(':title', $title);
+    $stmt->bindParam(':start_date', $start_date);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "New event created successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -97,12 +117,16 @@ function updateEvent($conn)
     $title = $data['title'];
     $start_date = $data['start_date'];
 
-    $sql = "UPDATE events SET v_name='$v_name', title='$title', start_date='$start_date' WHERE id=$id";
+    $stmt = $conn->prepare("UPDATE events SET v_name=:v_name, title=:title, start_date=:start_date WHERE id=:id");
+    $stmt->bindParam(':v_name', $v_name);
+    $stmt->bindParam(':title', $title);
+    $stmt->bindParam(':start_date', $start_date);
+    $stmt->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "Event updated successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -111,26 +135,40 @@ function deleteEvent($conn)
     $data = json_decode(file_get_contents("php://input"), true);
     $id = $data['id'];
 
-    $sql = "DELETE FROM events WHERE id=$id";
+    $stmt = $conn->prepare("DELETE FROM events WHERE id=:id");
+    $stmt->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "Event deleted successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
 function getVNames($conn)
 {
-    $sql = "SELECT * FROM v_names";
-    $result = $conn->query($sql);
-    $v_names = [];
+    $id = isset($_GET['id']) ? $_GET['id'] : null;
 
-    while ($row = $result->fetch_assoc()) {
-        $v_names[] = $row;
+    if ($id) {
+        $stmt = $conn->prepare("SELECT * FROM v_names WHERE id = :id LIMIT 1");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // ถ้าไม่พบ event ที่ตรงกับ id ที่ให้มา
+        if ($event) {
+            echo json_encode($event);
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'Event not found']);
+        }
+    } else {
+        $stmt = $conn->prepare("SELECT * FROM v_names");
+        $stmt->execute();
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode($events);
     }
-
-    echo json_encode($v_names);
 }
 
 function addVName($conn)
@@ -139,12 +177,14 @@ function addVName($conn)
     $name = $data['name'];
     $color = $data['color'];
 
-    $sql = "INSERT INTO v_names (name, color) VALUES ('$name', '$color')";
+    $stmt = $conn->prepare("INSERT INTO v_names (name, color) VALUES (:name, :color)");
+    $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':color', $color);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "New name created successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -155,12 +195,15 @@ function updateVName($conn)
     $name = $data['name'];
     $color = $data['color'];
 
-    $sql = "UPDATE v_names SET name='$name', color='$color' WHERE id=$id";
+    $stmt = $conn->prepare("UPDATE v_names SET name=:name, color=:color WHERE id=:id");
+    $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':color', $color);
+    $stmt->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "Name updated successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -169,47 +212,35 @@ function deleteVName($conn)
     $data = json_decode(file_get_contents("php://input"), true);
     $id = $data['id'];
 
-    $sql = "DELETE FROM v_names WHERE id=$id";
-    $sql2 = "DELETE FROM v_members WHERE v_names_id=$id";
+    $stmt2 = $conn->prepare("DELETE FROM v_members WHERE v_names_id=:id");
+    $stmt2->bindParam(':id', $id);
+    
+    $stmt1 = $conn->prepare("DELETE FROM v_names WHERE id=:id");
+    $stmt1->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE && $conn->query($sql2) === TRUE) {
+    if ($stmt2->execute() && $stmt1->execute()) {
         echo json_encode(["message" => "Name deleted successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt1->errorInfo()) . " " . implode(" ", $stmt2->errorInfo())]);
     }
 }
 
 function getVMembers($conn)
 {
-    // Get the v_names parameter from the GET request, if it exists
-    $v_names_id = isset($_GET['v_names_id']) ? $_GET['v_names_id'] : '';
-
-    if ($v_names_id) {
-        // Prepare a SQL statement with a placeholder for the v_names value
-        $stmt = $conn->prepare("SELECT * FROM v_members WHERE v_names_id = ?");
-        // Bind the $v_names variable to the placeholder
-        $stmt->bind_param('s', $v_names_id);
+        
+    if (isset($_GET['v_names_id'])) {
+        $v_names_id = isset($_GET['v_names_id']) ? $_GET['v_names_id'] : null;
+        $stmt = $conn->prepare("SELECT * FROM v_members WHERE v_names_id = :v_names_id");
+        $stmt->bindParam(':v_names_id', $v_names_id);
     } else {
-        // If no v_names is provided, prepare a simple query to select all v_members
         $stmt = $conn->prepare("SELECT * FROM v_members");
     }
 
-    // Execute the statement
     $stmt->execute();
+    $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get the result of the query
-    $result = $stmt->get_result();
-    $v_members = [];
-
-    // Fetch each row in the result set as an associative array and store in $v_members
-    while ($row = $result->fetch_assoc()) {
-        $v_members[] = $row;
-    }
-
-    // Return the v_members array as a JSON object
     echo json_encode($v_members);
 }
-
 
 function addVMember($conn)
 {
@@ -217,12 +248,14 @@ function addVMember($conn)
     $v_names_id = $data['v_names_id'];
     $name = $data['name'];
 
-    $sql = "INSERT INTO v_members (v_names_id, name) VALUES ('$v_names_id', '$name')";
+    $stmt = $conn->prepare("INSERT INTO v_members (v_names_id, name) VALUES (:v_names_id, :name)");
+    $stmt->bindParam(':v_names_id', $v_names_id);
+    $stmt->bindParam(':name', $name);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "New member created successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -233,12 +266,15 @@ function updateVMember($conn)
     $v_names_id = $data['v_names_id'];
     $name = $data['name'];
 
-    $sql = "UPDATE v_members SET v_names_id='$v_names_id', name='$name' WHERE id=$id";
+    $stmt = $conn->prepare("UPDATE v_members SET v_names_id=:v_names_id, name=:name WHERE id=:id");
+    $stmt->bindParam(':v_names_id', $v_names_id);
+    $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "Member updated successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
 
@@ -247,13 +283,13 @@ function deleteVMember($conn)
     $data = json_decode(file_get_contents("php://input"), true);
     $id = $data['id'];
 
-    $sql = "DELETE FROM v_members WHERE id=$id";
+    $stmt = $conn->prepare("DELETE FROM v_members WHERE id=:id");
+    $stmt->bindParam(':id', $id);
 
-    if ($conn->query($sql) === TRUE) {
+    if ($stmt->execute()) {
         echo json_encode(["message" => "Member deleted successfully"]);
     } else {
-        echo json_encode(["error" => "Error: " . $sql . "<br>" . $conn->error]);
+        echo json_encode(["error" => "Error: " . implode(" ", $stmt->errorInfo())]);
     }
 }
-
 ?>
