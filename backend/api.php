@@ -70,7 +70,7 @@ function getEvents($conn)
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         // ถ้าไม่พบ event ที่ตรงกับ id ที่ให้มา
         if ($event) {
             echo json_encode($event);
@@ -113,19 +113,19 @@ function updateEvent($conn)
 {
     $data = json_decode(file_get_contents("php://input"), true);
 
-    if(isset($_GET["action"]) && $_GET["action"] == "move"){
+    if (isset($_GET["action"]) && $_GET["action"] == "move") {
         $id = $data['id'];
         $start_date = $data['start_date'];
         $stmt = $conn->prepare("UPDATE events SET start_date=:start_date WHERE id=:id");
         $stmt->bindParam(':start_date', $start_date);
         $stmt->bindParam(':id', $id);
-        
-    }else{
+
+    } else {
         $id = $data['id'];
         $v_name = $data['v_name'];
         $title = $data['title'];
         $start_date = $data['start_date'];
-    
+
         $stmt = $conn->prepare("UPDATE events SET v_name=:v_name, title=:title, start_date=:start_date WHERE id=:id");
         $stmt->bindParam(':v_name', $v_name);
         $stmt->bindParam(':title', $title);
@@ -166,7 +166,7 @@ function getVNames($conn)
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         // ถ้าไม่พบ event ที่ตรงกับ id ที่ให้มา
         if ($event) {
             echo json_encode($event);
@@ -226,7 +226,7 @@ function deleteVName($conn)
 
     $stmt2 = $conn->prepare("DELETE FROM v_members WHERE v_names_id=:id");
     $stmt2->bindParam(':id', $id);
-    
+
     $stmt1 = $conn->prepare("DELETE FROM v_names WHERE id=:id");
     $stmt1->bindParam(':id', $id);
 
@@ -239,17 +239,25 @@ function deleteVName($conn)
 
 function getVMembers($conn)
 {
-        
+
     if (isset($_GET['v_names_id'])) {
         $v_names_id = isset($_GET['v_names_id']) ? $_GET['v_names_id'] : null;
         $stmt = $conn->prepare("SELECT * FROM v_members WHERE v_names_id = :v_names_id");
         $stmt->bindParam(':v_names_id', $v_names_id);
+        $stmt->execute();
+        $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } elseif (isset($_GET['id'])) {
+        $id = $_GET['id'];
+        $stmt = $conn->prepare("SELECT * FROM v_members WHERE id = :id");
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        $v_members = $stmt->fetch(PDO::FETCH_ASSOC);
+
     } else {
         $stmt = $conn->prepare("SELECT * FROM v_members");
+        $stmt->execute();
+        $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    $stmt->execute();
-    $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode($v_members);
 }
@@ -259,10 +267,12 @@ function addVMember($conn)
     $data = json_decode(file_get_contents("php://input"), true);
     $v_names_id = $data['v_names_id'];
     $name = $data['name'];
+    $sort = $data['sort'];
 
-    $stmt = $conn->prepare("INSERT INTO v_members (v_names_id, name) VALUES (:v_names_id, :name)");
+    $stmt = $conn->prepare("INSERT INTO v_members (v_names_id, name, sort) VALUES (:v_names_id, :name, :sort)");
     $stmt->bindParam(':v_names_id', $v_names_id);
     $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':sort', $sort);
 
     if ($stmt->execute()) {
         echo json_encode(["message" => "New member created successfully"]);
@@ -277,10 +287,12 @@ function updateVMember($conn)
     $id = $data['id'];
     $v_names_id = $data['v_names_id'];
     $name = $data['name'];
+    $sort = $data['sort'];
 
-    $stmt = $conn->prepare("UPDATE v_members SET v_names_id=:v_names_id, name=:name WHERE id=:id");
+    $stmt = $conn->prepare("UPDATE v_members SET v_names_id=:v_names_id, name=:name, sort=:sort WHERE id=:id");
     $stmt->bindParam(':v_names_id', $v_names_id);
     $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':sort', $sort);
     $stmt->bindParam(':id', $id);
 
     if ($stmt->execute()) {
