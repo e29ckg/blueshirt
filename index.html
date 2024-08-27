@@ -94,6 +94,7 @@
             </div>
             <div class="col-auto mb-2">
               <svg
+                @click="showEditVNameModal(vname.id)"
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
                 height="24"
@@ -112,26 +113,6 @@
                   d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
                 ></path>
               </svg>
-              <svg
-                @click="deleteVName(vname.id)"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="feather feather-trash-2"
-              >
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path
-                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                ></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
             </div>
           </div>
         </form>
@@ -143,7 +124,7 @@
               class="form-select"
               aria-label="Default select example"
               v-model="selectVName"
-              @change="fetchVMenbers(selectVName)"
+              @change="fetchMenbers(selectVName)"
             >
               <option v-for="vname in vnames" :key="vname.id" :value="vname.id">
                 {{vname.name}}
@@ -161,7 +142,13 @@
             </div>
           </div>
           <div>
-            <button type="button" @click="showAddEventModal">add member</button>
+            <button
+              type="button"
+              v-if="selectVName"
+              @click="showAddMemberModal"
+            >
+              add member {{selectVName}}
+            </button>
           </div>
         </div>
       </div>
@@ -169,7 +156,6 @@
       <div id="calendar-container">
         <div id="calendar"></div>
       </div>
-      <div>{{vnames}}</div>
 
       <!-- Modal for Adding v_names -->
       <div
@@ -192,37 +178,248 @@
               ></button>
             </div>
             <div class="modal-body">
-              <form @submit.prevent="addVName">
-                <div class="mb-3">
-                  <label for="vNameInput" class="form-label"
-                    >v_names Name:</label
-                  >
-                  <input
-                    type="text"
-                    class="form-control"
-                    v-model="newVName.name"
-                    required
-                  />
+              <form>
+                <div class="row">
+                  <div class="mb-3">
+                    <label for="vNameInput" class="form-label"
+                      >v_names Name:</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      v-model="newVName.name"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="vColorInput" class="form-label"
+                      >v_names Color:</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      v-model="newVName.color"
+                    />
+                  </div>
+
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-danger"
+                      data-bs-dismiss="modal"
+                      @click="deleteVName(newVName.id)"
+                      v-if="newVName.action == 'update'"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      v-if="newVName.action == 'update'"
+                      @click="editVName"
+                      v-if="newVName.id"
+                      type="button"
+                      class="btn btn-warning"
+                    >
+                      Update
+                    </button>
+                    <button
+                      v-if="newVName.action == 'insert'"
+                      @click="addVName"
+                      type="button"
+                      class="btn btn-primary"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label for="vColorInput" class="form-label"
-                    >v_names Color:</label
-                  >
-                  <input
-                    type="text"
-                    class="form-control"
-                    v-model="newVName.color"
-                  />
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for Adding v_members -->
+      <div
+        class="modal fade"
+        id="addMemberModal"
+        tabindex="-1"
+        aria-labelledby="addMemberModalLabel"
+        aria-hidden="true"
+        ref="addMemberModal"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="addMemberModalLabel">Add members</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <form>
+                <div class="row">
+                  <div>
+                    <table class="table">
+                      <tr v-for="member,index in members" ::key="member.id">
+                        <td>{{member.sort}}</td>
+                        <td>{{member.name}}</td>
+                        <td>
+                          <button
+                            type="button"
+                            @click="showEditMemberModal(member.id)"
+                          >
+                            edit
+                          </button>
+                          <button
+                            type="button"
+                            @click="deleteMember(member.id)"
+                          >
+                            del
+                          </button>
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>
+                          <input
+                            type="number"
+                            name="memberSort"
+                            id="memberSort"
+                            v-model="newMember.sort"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            name="member"
+                            id="member"
+                            v-model="newMember.name"
+                            required
+                          />
+                        </td>
+                        <td>
+                          <button type="button" @click="addMember">Add</button>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div>{{newMember}}</div>
+
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-danger"
+                      data-bs-dismiss="modal"
+                      @click="deleteVName(newMember.id)"
+                      v-if="newMember.action == 'update'"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      v-if="newMember.action == 'update'"
+                      @click="editMember"
+                      type="button"
+                      class="btn btn-warning"
+                    >
+                      Update
+                    </button>
+                    <button
+                      v-if="newMember.action == 'insert'"
+                      @click="addMember"
+                      type="button"
+                      class="btn btn-primary"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
-                <div class="modal-footer">
-                  <button
-                    type="button"
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal"
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" class="btn btn-primary">Save</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for Adding v_members_sub -->
+      <div
+        class="modal fade"
+        id="editMemberModal"
+        tabindex="-2"
+        aria-labelledby="editMemberModalLabel"
+        aria-hidden="true"
+        ref="editMemberModal"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editMemberModalLabel">Add members</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <form>
+                <div class="row">
+                  <div>
+                    <form @submit.prevent="editMember">
+                      <input type="text" v-model="newMember.sort" />
+                      <input type="text" v-model="newMember.name" />
+                    </form>
+                  </div>
+                  <div>{{newMember}}</div>
+
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-danger"
+                      data-bs-dismiss="modal"
+                      @click="deleteMember(newMember.id)"
+                      v-if="newMember.action == 'update'"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      v-if="newMember.action == 'update'"
+                      @click="editMember"
+                      type="button"
+                      class="btn btn-warning"
+                    >
+                      Update
+                    </button>
+                    <button
+                      v-if="newMember.action == 'insert'"
+                      @click="addMember"
+                      type="button"
+                      class="btn btn-primary"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -308,11 +505,14 @@
             name: "",
             color: "",
           });
+          const btnSaveVName = ref(null);
 
           const members = ref([]);
           const newMember = ref({
             vNameId: "",
             name: "",
+            sort: "",
+            action: "insert",
           });
 
           const newEvent = ref({
@@ -366,47 +566,172 @@
             calendar.value.render();
           };
 
-          const fetchVNames = () => {
-            axios.get("./backend/api.php?endpoint=v_names").then((response) => {
-              vnames.value = response.data;
-            });
-          };
-
-          const fetchVMenbers = (v_names_id) => {
+          const fetchMenbers = () => {
             axios
               .get(
-                `./backend/api.php?endpoint=v_members&v_names_id=${v_names_id}`
+                `./backend/api.php?endpoint=v_members&v_names_id=${selectVName.value}`
               )
               .then((response) => {
                 members.value = response.data;
               });
           };
 
+          const showAddMemberModal = () => {
+            newMember.value = {
+              v_names_id: selectVName.value,
+              name: "",
+              sort: "",
+              action: "insert",
+            };
+            const addMemberModal = new bootstrap.Modal(
+              document.getElementById("addMemberModal")
+            );
+            addMemberModal.show();
+          };
+
+          const addMember = async () => {
+            await axios
+              .post("./backend/api.php?endpoint=v_members", newMember.value)
+              .then((response) => {
+                console.log(response);
+                newMember.value = {
+                  v_names_id: selectVName.value,
+                  name: "",
+                  sort: "",
+                  action: "insert",
+                };
+                // bootstrap.Modal.getInstance(
+                //   document.getElementById("addMemberModal")
+                // ).hide();
+                fetchMenbers();
+              })
+              .catch((error) => {
+                console.error("Error adding addMember:", error);
+              });
+          };
+
+          const showEditMemberModal = async (id) => {
+            try {
+              const response = await axios.get(
+                `./backend/api.php?endpoint=v_members&id=${id}`
+              );
+              console.log(response);
+
+              // Populate newMember with data from the response
+              newMember.value = {
+                id: response.data.id,
+                v_names_id: response.data.v_names_id,
+                name: response.data.name,
+                sort: response.data.sort,
+                action: "update",
+              };
+
+              // Show the modal
+              const editMemberModal = new bootstrap.Modal(
+                document.getElementById("editMemberModal")
+              );
+              editMemberModal.show();
+            } catch (error) {
+              console.error("Error fetching member data:", error);
+            }
+          };
+
+          const editMember = async () => {
+            await axios
+              .put("./backend/api.php?endpoint=v_members", newMember.value)
+              .then((response) => {
+                console.log(response);
+                newMember.value = {
+                  v_names_id: selectVName.value,
+                  name: "",
+                  sort: "",
+                  action: "insert",
+                };
+                bootstrap.Modal.getInstance(
+                  document.getElementById("editMemberModal")
+                ).hide();
+                fetchMenbers();
+              })
+              .catch((error) => {
+                console.error("Error adding addMember:", error);
+              });
+          };
+
+          const deleteMember = async (id) => {
+            await axios
+              .delete("./backend/api.php?endpoint=v_members", { data: { id } })
+              .then((response) => {
+                // events = events.filter((event) => event.id !== id);
+                fetchMenbers();
+              })
+              .catch((error) => {
+                console.error("Error Delete v_members:", error);
+              });
+          };
+
+          const fetchVNames = () => {
+            axios.get("./backend/api.php?endpoint=v_names").then((response) => {
+              vnames.value = response.data;
+            });
+          };
+
           const showAddVNameModal = () => {
+            newVName.value = {
+              name: "",
+              color: "",
+              action: "insert",
+            };
             const addVNameModal = new bootstrap.Modal(
               document.getElementById("addVNameModal")
             );
             addVNameModal.show();
           };
 
-          const showEditVNameModal = async () => {
+          const addVName = async () => {
+            await axios
+              .post("./backend/api.php?endpoint=v_names", newVName.value)
+              .then((response) => {
+                console.log(response);
+                newVName.value = {
+                  name: "",
+                  color: "",
+                };
+                bootstrap.Modal.getInstance(
+                  document.getElementById("addVNameModal")
+                ).hide();
+                fetchVNames();
+              })
+              .catch((error) => {
+                console.error("Error adding v_name:", error);
+              });
+          };
+
+          const showEditVNameModal = async (id) => {
             response = await axios.get(
               `./backend/api.php?endpoint=v_names&id=${id}`
             );
             console.log(response);
+            newVName.value = {
+              id: response.data.id,
+              name: response.data.name,
+              color: response.data.color,
+              action: "update",
+            };
             const addVNameModal = new bootstrap.Modal(
               document.getElementById("addVNameModal")
             );
             addVNameModal.show();
           };
 
-          const addVName = () => {
-            axios
-              .post("./backend/api.php?endpoint=v_names", newVName.value)
+          const editVName = async () => {
+            response = await axios
+              .put("./backend/api.php?endpoint=v_names", newVName.value)
               .then((response) => {
                 console.log(response);
-                newVName.value.name = "";
-                newVName.value.color = "";
+                newVName.value = {
+                  name: "",
+                  color: "",
+                };
                 bootstrap.Modal.getInstance(
                   document.getElementById("addVNameModal")
                 ).hide();
@@ -421,7 +746,7 @@
             await axios
               .delete("./backend/api.php?endpoint=v_names", { data: { id } })
               .then((response) => {
-                events = events.filter((event) => event.id !== "5");
+                // events = events.filter((event) => event.id !== id);
               })
               .catch((error) => {
                 console.error("Error Delete v_names:", error);
@@ -497,7 +822,7 @@
                 `./backend/api.php?endpoint=events&id=${event.id}`
               );
               fetchVNames();
-              fetchVMenbers(response.data.v_name_id);
+              fetchMenbers(response.data.v_name_id);
               // อัพเดตข้อมูลใน newEvent.value ด้วยข้อมูลจาก response
               newEvent.value = {
                 id: response.data.id, // ใส่ id ของ event ถ้าจำเป็นในการบันทึกการแก้ไข
@@ -555,15 +880,25 @@
             newVName,
             newEvent,
             members,
+            newMember,
             selectVName,
+            btnSaveVName,
             fetchVNames,
-            fetchVMenbers,
             showAddVNameModal,
-            showAddEventModal,
+            showEditVNameModal,
             addVName,
-            addEvent,
+            editVName,
             deleteVName,
+            showAddEventModal,
+            addEvent,
             deleteEvent,
+
+            fetchMenbers,
+            showAddMemberModal,
+            showEditMemberModal,
+            addMember,
+            editMember,
+            deleteMember,
             initializeCalendar,
           };
         },
