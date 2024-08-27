@@ -357,17 +357,9 @@
                 events: fetchEvents, // Load events from the API using Axios
                 editable: true,
 
-                // eventDrop: function (info) {
-                //   alert(
-                //     info.event.title +
-                //       " was dropped on " +
-                //       info.event.start.toISOString()
-                //   );
-
-                //   if (!confirm("Are you sure about this change?")) {
-                //     info.revert();
-                //   }
-                // },
+                eventDrop: function (info) {
+                  handleEventMoveDrop(info);
+                },
               }
             );
 
@@ -536,11 +528,26 @@
                 title: info.draggedEl.outerText,
                 start_date: info.dateStr,
               })
-              .then((response) => {})
+              .then((response) => {
+                initializeCalendar();
+              })
               .catch((error) => {
                 console.error("Error adding events:", error);
               });
-            fetchEvents;
+          };
+          const handleEventMoveDrop = async (info) => {
+            // Handle event drop from external events to calendar
+            await axios
+              .put("./backend/api.php?endpoint=events&action=move", {
+                id: info.event.id,
+                start_date: info.event.startStr,
+              })
+              .then((response) => {
+                initializeCalendar();
+              })
+              .catch((error) => {
+                console.error("Error adding events:", error);
+              });
           };
 
           return {
