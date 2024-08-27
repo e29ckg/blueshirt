@@ -112,16 +112,28 @@ function addEvent($conn)
 function updateEvent($conn)
 {
     $data = json_decode(file_get_contents("php://input"), true);
-    $id = $data['id'];
-    $v_name = $data['v_name'];
-    $title = $data['title'];
-    $start_date = $data['start_date'];
 
-    $stmt = $conn->prepare("UPDATE events SET v_name=:v_name, title=:title, start_date=:start_date WHERE id=:id");
-    $stmt->bindParam(':v_name', $v_name);
-    $stmt->bindParam(':title', $title);
-    $stmt->bindParam(':start_date', $start_date);
-    $stmt->bindParam(':id', $id);
+    if(isset($_GET["action"]) && $_GET["action"] == "move"){
+        $id = $data['id'];
+        $start_date = $data['start_date'];
+        $stmt = $conn->prepare("UPDATE events SET start_date=:start_date WHERE id=:id");
+        $stmt->bindParam(':start_date', $start_date);
+        $stmt->bindParam(':id', $id);
+        
+    }else{
+        $id = $data['id'];
+        $v_name = $data['v_name'];
+        $title = $data['title'];
+        $start_date = $data['start_date'];
+    
+        $stmt = $conn->prepare("UPDATE events SET v_name=:v_name, title=:title, start_date=:start_date WHERE id=:id");
+        $stmt->bindParam(':v_name', $v_name);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':start_date', $start_date);
+        $stmt->bindParam(':id', $id);
+
+    }
+
 
     if ($stmt->execute()) {
         echo json_encode(["message" => "Event updated successfully"]);
