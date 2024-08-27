@@ -50,7 +50,7 @@
       #calendar-container {
         position: relative;
         z-index: 1;
-        margin-left: 200px;
+        margin-left: 300px;
       }
 
       #calendar {
@@ -143,7 +143,7 @@
               class="form-select"
               aria-label="Default select example"
               v-model="selectVName"
-              @change="fetchVMenbers()"
+              @change="fetchVMenbers(selectVName)"
             >
               <option v-for="vname in vnames" :key="vname.id" :value="vname.id">
                 {{vname.name}}
@@ -161,7 +161,7 @@
             </div>
           </div>
           <div>
-            <button type="button">add member</button>
+            <button type="button" @click="showAddEventModal">add member</button>
           </div>
         </div>
       </div>
@@ -229,6 +229,56 @@
           </div>
         </div>
       </div>
+
+      <!-- Modal for Adding events -->
+      <div
+        class="modal fade"
+        id="addEventModal"
+        tabindex="-1"
+        aria-labelledby="addEventModalLabel"
+        aria-hidden="true"
+        ref="addEventModal"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="addEventModalLabel">Add Event</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <form @submit.prevent="addEvent">
+                <div class="mb-3"></div>
+                <div class="mb-3"></div>
+                <div>{{newEvent}}</div>
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-danger"
+                    data-bs-dismiss="modal"
+                    @click="deleteEvent(newEvent.id)"
+                    v-if="newEvent.id"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -254,11 +304,24 @@
       createApp({
         setup() {
           const vnames = ref([]);
-          const members = ref([]);
           const newVName = ref({
             name: "",
             color: "",
           });
+
+          const members = ref([]);
+          const newMember = ref({
+            vNameId: "",
+            name: "",
+          });
+
+          const newEvent = ref({
+            vNameId: "",
+            vMemberId: "",
+            title: "",
+            start_date: "",
+          });
+
           const selectVName = ref("");
           const calendar = ref(null);
 
@@ -266,22 +329,6 @@
             fetchVNames();
             initializeCalendar();
           });
-
-          const fetchVNames = () => {
-            axios.get("./backend/api.php?endpoint=v_names").then((response) => {
-              vnames.value = response.data;
-            });
-          };
-
-          const fetchVMenbers = () => {
-            axios
-              .get(
-                `./backend/api.php?endpoint=v_members&v_names_id=${selectVName.value}`
-              )
-              .then((response) => {
-                members.value = response.data;
-              });
-          };
 
           const initializeCalendar = () => {
             calendar.value = new FullCalendar.Calendar(
@@ -292,6 +339,7 @@
                   center: "title",
                   right: "dayGridMonth",
                 },
+                height: "auto",
                 editable: true,
                 droppable: true, // this allows things to be dropped onto the calendar
                 dateClick(info) {
@@ -326,7 +374,34 @@
             calendar.value.render();
           };
 
+          const fetchVNames = () => {
+            axios.get("./backend/api.php?endpoint=v_names").then((response) => {
+              vnames.value = response.data;
+            });
+          };
+
+          const fetchVMenbers = (v_names_id) => {
+            axios
+              .get(
+                `./backend/api.php?endpoint=v_members&v_names_id=${v_names_id}`
+              )
+              .then((response) => {
+                members.value = response.data;
+              });
+          };
+
           const showAddVNameModal = () => {
+            const addVNameModal = new bootstrap.Modal(
+              document.getElementById("addVNameModal")
+            );
+            addVNameModal.show();
+          };
+
+          const showEditVNameModal = async () => {
+            response = await axios.get(
+              `./backend/api.php?endpoint=v_names&id=${id}`
+            );
+            console.log(response);
             const addVNameModal = new bootstrap.Modal(
               document.getElementById("addVNameModal")
             );
@@ -337,13 +412,7 @@
             axios
               .post("./backend/api.php?endpoint=v_names", newVName.value)
               .then((response) => {
-                const newVNameData = response.data;
-                vnames.value.push({
-                  id: newVNameData.id,
-                  name: newVNameData.name,
-                  color: newVNameData.color,
-                  events: [],
-                });
+                console.log(response);
                 newVName.value.name = "";
                 newVName.value.color = "";
                 bootstrap.Modal.getInstance(
@@ -355,19 +424,25 @@
                 console.error("Error adding v_name:", error);
               });
           };
+
           const deleteVName = async (id) => {
-            console.log(id);
             await axios
               .delete("./backend/api.php?endpoint=v_names", { data: { id } })
-              .then((response) => {})
+              .then((response) => {
+                events = events.filter((event) => event.id !== "5");
+              })
               .catch((error) => {
                 console.error("Error Delete v_names:", error);
               });
             fetchVNames();
           };
 
-          const fetchEvents = (info, successCallback, failureCallback) => {
-            axios
+          const fetchEvents = async (
+            info,
+            successCallback,
+            failureCallback
+          ) => {
+            await axios
               .get("./backend/api.php?endpoint=events")
               .then((response) => {
                 const events = response.data.map((event) => ({
@@ -384,14 +459,72 @@
               });
           };
 
+          const addEvent = async () => {
+            await axios
+              .post("./backend/api.php?endpoint=events", newEvent.value)
+              .then((response) => {
+                bootstrap.Modal.getInstance(
+                  document.getElementById("addEventModal")
+                ).hide();
+                initializeCalendar();
+              })
+              .catch((error) => {
+                console.error("Error adding v_name:", error);
+              });
+          };
+
+          const deleteEvent = async (id) => {
+            await axios
+              .delete("./backend/api.php?endpoint=events", { data: { id } })
+              .then((response) => {})
+              .catch((error) => {
+                console.error("Error Delete v_names:", error);
+              });
+            initializeCalendar();
+          };
+
           const showAddEventModal = (dateStr) => {
             // Implementation for showing the modal to add a new event
+            newEvent.value = {
+              vNameId: "",
+              vMemberId: "",
+              title: "",
+              start_date: dateStr,
+            };
+            const addEventModal = new bootstrap.Modal(
+              document.getElementById("addEventModal")
+            );
+            addEventModal.show();
             console.log("Show add event modal for date:", dateStr);
           };
 
-          const showEditEventModal = (event) => {
-            // Implementation for showing the modal to edit an event
-            console.log("Show edit event modal for event:", event);
+          const showEditEventModal = async (event) => {
+            try {
+              // ทำการดึงข้อมูล event จาก backend
+              const response = await axios.get(
+                `./backend/api.php?endpoint=events&id=${event.id}`
+              );
+              fetchVNames();
+              fetchVMenbers(response.data.v_name_id);
+              // อัพเดตข้อมูลใน newEvent.value ด้วยข้อมูลจาก response
+              newEvent.value = {
+                id: response.data.id, // ใส่ id ของ event ถ้าจำเป็นในการบันทึกการแก้ไข
+                vNameId: response.data.v_name_id,
+                vMemberId: response.data.v_member_id,
+                title: response.data.title,
+                start_date: response.data.start_date,
+              };
+
+              // เปิดโมดัลสำหรับการแก้ไข event
+              const addEventModal = new bootstrap.Modal(
+                document.getElementById("addEventModal")
+              );
+              addEventModal.show();
+
+              // console.log("Show edit event modal for event:", response.data[0]);
+            } catch (error) {
+              console.error("Error fetching event data:", error);
+            }
           };
 
           const handleEventDrop = async (info) => {
@@ -413,13 +546,17 @@
           return {
             vnames,
             newVName,
+            newEvent,
             members,
             selectVName,
             fetchVNames,
             fetchVMenbers,
             showAddVNameModal,
+            showAddEventModal,
             addVName,
+            addEvent,
             deleteVName,
+            deleteEvent,
             initializeCalendar,
           };
         },
