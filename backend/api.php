@@ -63,9 +63,33 @@ $conn = null; // Close the connection
 
 function getEvents($conn)
 {
-    $id = isset($_GET['id']) ? $_GET['id'] : null;
+    if (isset($_GET['month'])) {
+        $monthNow = $_GET['month'];
+        $monthNow_obj = new DateTime($monthNow);
+        $month_start_obj = clone $monthNow_obj;
+        $month_end_obj = clone $monthNow_obj;
 
-    if ($id) {
+        // ลบ 1 เดือนจาก $month_start_obj
+        $month_start_obj->modify('-7 day');
+        $month_start = $month_start_obj->format('Y-m-d');
+
+        // เพิ่ม 1 เดือนจาก $month_end_obj
+        $month_end_obj->modify('+45 day');
+        $month_end = $month_end_obj->format('Y-m-d');
+
+        $stmt = $conn->prepare("SELECT * FROM events WHERE start_date >= :month_start AND start_date <= :month_end");
+        $stmt->bindValue(':month_start', $month_start, PDO::PARAM_STR);
+        $stmt->bindValue(':month_end', $month_end, PDO::PARAM_STR);
+        $stmt->execute();
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode($events);
+        exit;
+    }
+
+    if (isset($_GET['id'])) {
+        $id = isset($_GET['id']) ? $_GET['id'] : null;
+
         $stmt = $conn->prepare("SELECT * FROM events WHERE id = :id LIMIT 1");
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
@@ -74,9 +98,11 @@ function getEvents($conn)
         // ถ้าไม่พบ event ที่ตรงกับ id ที่ให้มา
         if ($event) {
             echo json_encode($event);
+            exit;
         } else {
             http_response_code(404);
             echo json_encode(['message' => 'Event not found']);
+            exit;
         }
     } else {
         $stmt = $conn->prepare("SELECT * FROM events");
@@ -84,6 +110,7 @@ function getEvents($conn)
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode($events);
+        exit;
     }
 }
 
@@ -159,8 +186,8 @@ function deleteEvent($conn)
 
 function getVNames($conn)
 {
-    
-    if (isset($_GET['id']) ) {
+
+    if (isset($_GET['id'])) {
         $id = $_GET['id'];
         $stmt = $conn->prepare("SELECT * FROM v_names WHERE id = :id LIMIT 1");
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
@@ -172,7 +199,7 @@ function getVNames($conn)
             echo json_encode($event);
         } else {
             http_response_code(200);
-            echo json_encode(["name"=>"Event not found"]);
+            echo json_encode(["name" => "Event not found"]);
             // http_response_code(404);
             // echo json_encode(['message' => 'Event not found']);
         }
