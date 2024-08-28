@@ -925,9 +925,9 @@
                 `./backend/api.php?endpoint=events&id=${event.id}`
               );
               const vNameId = response.data.v_name_id;
-              if (!vNameId) {
-                throw new Error("v_name_id is missing or invalid.");
-              }
+              // if (!vNameId) {
+              //   throw new Error("v_name_id is missing or invalid.");
+              // }
 
               const responseVName = await axios.get(
                 `./backend/api.php?endpoint=v_names&id=${vNameId}`
