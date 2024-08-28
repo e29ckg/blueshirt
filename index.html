@@ -748,15 +748,23 @@
               });
           };
           const deleteMember = async (id) => {
-            await axios
-              .delete("./backend/api.php?endpoint=v_members", { data: { id } })
-              .then((response) => {
-                // events = events.filter((event) => event.id !== id);
-                fetchMenbers();
-              })
-              .catch((error) => {
-                console.error("Error Delete v_members:", error);
-              });
+            const confirmed = confirm(
+              "Are you sure you want to delete this Menber?"
+            );
+
+            if (!confirmed) return; // If the user cancels, exit the function
+            try {
+              await axios
+                .delete("./backend/api.php?endpoint=v_members", {
+                  data: { id },
+                })
+                .then((response) => {
+                  // events = events.filter((event) => event.id !== id);
+                  fetchMenbers();
+                });
+            } catch (error) {
+              console.error("Error deleting Member:", error);
+            }
           };
 
           const ckAddVName = () => {
