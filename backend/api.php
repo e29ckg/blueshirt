@@ -159,9 +159,9 @@ function deleteEvent($conn)
 
 function getVNames($conn)
 {
-    $id = isset($_GET['id']) ? $_GET['id'] : null;
-
-    if ($id) {
+    
+    if (isset($_GET['id']) ) {
+        $id = $_GET['id'];
         $stmt = $conn->prepare("SELECT * FROM v_names WHERE id = :id LIMIT 1");
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
@@ -171,8 +171,10 @@ function getVNames($conn)
         if ($event) {
             echo json_encode($event);
         } else {
-            http_response_code(404);
-            echo json_encode(['message' => 'Event not found']);
+            http_response_code(200);
+            echo json_encode(["name"=>"Event not found"]);
+            // http_response_code(404);
+            // echo json_encode(['message' => 'Event not found']);
         }
     } else {
         $stmt = $conn->prepare("SELECT * FROM v_names");
@@ -242,19 +244,19 @@ function getVMembers($conn)
 
     if (isset($_GET['v_names_id'])) {
         $v_names_id = isset($_GET['v_names_id']) ? $_GET['v_names_id'] : null;
-        $stmt = $conn->prepare("SELECT * FROM v_members WHERE v_names_id = :v_names_id");
+        $stmt = $conn->prepare("SELECT * FROM v_members WHERE v_names_id = :v_names_id ORDER BY sort ASC");
         $stmt->bindParam(':v_names_id', $v_names_id);
         $stmt->execute();
         $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } elseif (isset($_GET['id'])) {
         $id = $_GET['id'];
-        $stmt = $conn->prepare("SELECT * FROM v_members WHERE id = :id");
+        $stmt = $conn->prepare("SELECT * FROM v_members WHERE id = :id LIMIT 1");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         $v_members = $stmt->fetch(PDO::FETCH_ASSOC);
 
     } else {
-        $stmt = $conn->prepare("SELECT * FROM v_members");
+        $stmt = $conn->prepare("SELECT * FROM v_members ORDER BY sort ASC");
         $stmt->execute();
         $v_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
