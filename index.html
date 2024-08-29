@@ -78,10 +78,19 @@
       .v-name-section:hover {
         background-color: rgb(197, 234, 62);
       }
+
+      [v-cloak] {
+        color: red;
+      }
+      #app {
+        padding: 10px;
+        font-size: x-large;
+        background-color: lightgreen;
+      }
     </style>
   </head>
   <body>
-    <div id="app">
+    <div id="app" v-cloak>
       <div id="external-events">
         <div class="d-grid mt-2 mb-3">
           <button
